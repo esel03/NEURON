@@ -11,6 +11,8 @@ import asyncio
 import requests
 import json
 import jwt
+import datetime
+
 
 app = FastAPI()
 
@@ -38,7 +40,7 @@ headers= {
 }
 
 url_update_under_table_advertisement = "http://127.0.0.1:8000/api/two_table/update_under_table_advertisement/"
-
+url_upload = "http://127.0.0.1:8000/api/two_table/upload_under_table_advertisement/"
 
 
 class Api(BaseModel):
@@ -53,8 +55,11 @@ class Api(BaseModel):
     founding_date: Union[str, None] = None
     text_out: Union[str, None] = None
 
-    
-
+class Upload(BaseModel):
+    id_user: str
+    adv_id: str
+    token: Union[str, None] = None
+    text_out: Union[str, None] = None
 
 
 @app.post("/api/generate/", status_code=status.HTTP_200_OK)
@@ -85,6 +90,26 @@ async def proba(item: Api):
         return JSONResponse(content={"token": item.token, "adv_id": item.adv_id}, status_code=200)
     else:
         return JSONResponse(content={"message": "Bad Request"}, status_code=404)
+
+
+@app.post("/api/output/")
+async def output(item: Upload):
+    item.token = jwt.encode({
+                'id_user': str(item.id_user),
+                'iat': datetime.datetime.utcnow(),
+                'nbf': datetime.datetime.utcnow() + datetime.timedelta(minutes=-5),
+                'exp': datetime.datetime.utcnow() + datetime.timedelta(days=30)
+            }, SECRET_KEY, algorithm="HS256")
+    prompt_upload = {
+            "token": item.token,
+            "adv_id": item.adv_id,
+    }
+
+    result_upload = requests.post(url_upload, headers=headers, json=prompt_upload)
+    json_text = json.loads(result_upload.text)
+
+    return {"text_out": f"{json_text}"}
+
 
 
 #@app.post("/api/")
